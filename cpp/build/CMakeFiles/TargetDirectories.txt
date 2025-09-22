@@ -1,0 +1,3 @@
+/usr/local/zed/samples/spatial mapping/multi_camera_vali/cpp/build/CMakeFiles/ZED_SpatialMappingFusion.dir
+/usr/local/zed/samples/spatial mapping/multi_camera_vali/cpp/build/CMakeFiles/edit_cache.dir
+/usr/local/zed/samples/spatial mapping/multi_camera_vali/cpp/build/CMakeFiles/rebuild_cache.dir
