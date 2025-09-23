@@ -9,6 +9,14 @@ if(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif()
 
+# Define custom build types
+set(CMAKE_CONFIGURATION_TYPES "Debug;RelWithDebInfo;Release;Release_with_debug_info" CACHE STRING "Available build configurations" FORCE)
+
+# Custom Release_with_debug_info build type
+set(CMAKE_CXX_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -O3 -DNDEBUG -march=native -mtune=native" CACHE STRING "CXX flags for Release_with_debug_info")
+set(CMAKE_C_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -O3 -DNDEBUG -march=native -mtune=native" CACHE STRING "C flags for Release_with_debug_info")  
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE_WITH_DEBUG_INFO "-O3" CACHE STRING "Linker flags for Release_with_debug_info")
+
 # Build configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG -Wall -Wextra")
@@ -22,7 +30,9 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native -mtune=native -flto")
     set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -march=native -mtune=native -flto")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto -Wl,--strip-all")
-    message(STATUS "Building in Release mode (optimized for speed)")
+    message(STATUS "Building in Release mode (fully optimized, no debug info)")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release_with_debug_info")
+    message(STATUS "Building in Release_with_debug_info mode (fully optimized with debug symbols)")
 else()
     SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
     message(STATUS "Building in RelWithDebInfo mode (default)")
@@ -59,6 +69,9 @@ ENDIF()
 
 FILE(GLOB_RECURSE SRC_FILES src/*.c*)
 FILE(GLOB_RECURSE HDR_FILES include/*.h*)
+
+# Add PerformanceProfiler to the build
+set(HDR_FILES ${HDR_FILES} include/PerformanceProfiler.hpp)
 
 add_executable(${PROJECT_NAME} ${HDR_FILES} ${SRC_FILES})
 

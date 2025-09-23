@@ -21,6 +21,7 @@
 // ZED include
 #include "ClientPublisher.hpp"
 #include "CaptureRecorder.hpp"
+#include "CaptureGUI.hpp"
 #include "GLViewer.hpp"
 #include "utils.hpp"
 #include <signal.h>
@@ -76,15 +77,64 @@ void signal_handler(int signal) {
     exit_requested = true;
 }
 
-// Capture mode implementation
+// Capture mode implementation  
 int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations, 
-                     int recording_duration, const std::string& output_dir) {
+                     int recording_duration, const std::string& output_dir, 
+                     int argc = 0, char **argv = nullptr) {
     
     std::cout << "=== CAPTURE MODE ===" << std::endl;
     std::cout << "Recording duration: " << recording_duration << " seconds" << std::endl;
     std::cout << "Output directory: " << output_dir << std::endl;
     std::cout << "Number of cameras: " << configurations.size() << std::endl;
     std::cout << std::endl;
+
+    // Check if we have the special device (47797222) that should use GUI
+    const uint64_t GUI_DEVICE_ID = 47797222;
+    bool has_gui_device = false;
+    sl::FusionConfiguration gui_device_config;
+    
+    for (const auto& conf : configurations) {
+        if (conf.serial_number == GUI_DEVICE_ID) {
+            has_gui_device = true;
+            gui_device_config = conf;
+            break;
+        }
+    }
+    
+    // If we have the GUI device, use the special GUI capture mode
+    if (has_gui_device && argc > 0 && argv != nullptr) {
+        std::cout << "Found special device " << GUI_DEVICE_ID << " - using GUI capture mode" << std::endl;
+        
+        // Generate SVO filename for GUI device
+        std::string svo_filename = "camera_" + std::to_string(GUI_DEVICE_ID) + ".svo";
+        std::string svo_path = output_dir + "/" + svo_filename;
+        
+        // Create and run GUI capture
+        CaptureGUI gui_capture;
+        if (!gui_capture.init(argc, argv, GUI_DEVICE_ID, svo_path)) {
+            std::cout << "Failed to initialize GUI capture for device " << GUI_DEVICE_ID << std::endl;
+            // Fall back to regular capture mode
+        } else {
+            // Run GUI capture
+            gui_capture.run();
+            
+            // Check result
+            if (gui_capture.isFinished()) {
+                std::cout << "GUI capture completed successfully!" << std::endl;
+                std::cout << "Recorded to: " << gui_capture.getSVOPath() << std::endl;
+                return EXIT_SUCCESS;
+            } else if (gui_capture.isCancelled()) {
+                std::cout << "GUI capture was cancelled by user." << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                std::cout << "GUI capture ended unexpectedly." << std::endl;
+                return EXIT_FAILURE;
+            }
+        }
+    }
+    
+    // Regular capture mode for all devices (or fallback)
+    std::cout << "Using standard capture mode" << std::endl;
 
     // Create output directory (simple approach for C++14 compatibility)
     std::string mkdir_cmd = "mkdir -p " + output_dir;
@@ -191,7 +241,7 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
     std::cout << std::endl;
 
     // Check if the ZED camera should run within the same process or if they are running on the edge.
-    // Note: Camera parameters (HD1080, 30fps, NEURAL_PLUS) are set in ClientPublisher constructor
+    // Note: Camera parameters (HD1080, 30fps, DEPTH_MODE::NEURAL_PLUS) are set in ClientPublisher constructor
     std::vector<ClientPublisher> clients(configurations.size());
     int id_ = 0;
     std::map<int, std::string> svo_files;
@@ -404,7 +454,7 @@ int main(int argc, char **argv) {
     // Execute the appropriate mode
     switch (app_mode) {
         case AppMode::CAPTURE:
-            return run_capture_mode(configurations, recording_duration, output_dir);
+            return run_capture_mode(configurations, recording_duration, output_dir, argc, argv);
             
         case AppMode::FUSION: {
             // For fusion mode, use SVO files from the svo_recordings directory

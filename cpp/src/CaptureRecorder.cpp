@@ -1,17 +1,18 @@
 #include "CaptureRecorder.hpp"
+#include "PerformanceProfiler.hpp"
 #include <iostream>
 #include <iomanip>
 #include <sys/stat.h>
 #include <cstdlib>
 
-CaptureRecorder::CaptureRecorder() : recording(false), frame_count(0) {
+CaptureRecorder::CaptureRecorder() : recording(false), frame_count(0), first_frame(true) {
     init_parameters.camera_resolution = sl::RESOLUTION::HD1080;
     init_parameters.camera_fps = 30;
     init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
 }
 
 CaptureRecorder::CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode) 
-    : recording(false), frame_count(0) {
+    : recording(false), frame_count(0), first_frame(true) {
     init_parameters.camera_resolution = resolution;
     init_parameters.camera_fps = fps;
     init_parameters.depth_mode = depth_mode;
@@ -47,9 +48,9 @@ bool CaptureRecorder::startRecording(sl::InputType input, const std::string& svo
         system(mkdir_cmd.c_str());
     }
 
-    // Setup recording parameters
+    // Setup recording parameters - Optimized for performance
     recording_parameters.video_filename = sl::String(svo_path.c_str());
-    recording_parameters.compression_mode = sl::SVO_COMPRESSION_MODE::H264;
+    recording_parameters.compression_mode = sl::SVO_COMPRESSION_MODE::H265;
 
     // Start recording
     auto recording_state = zed.enableRecording(recording_parameters);
@@ -101,22 +102,45 @@ double CaptureRecorder::getRecordingDuration() const {
 void CaptureRecorder::recordingLoop() {
     sl::RuntimeParameters runtime_parameters;
     runtime_parameters.confidence_threshold = 50;
+    runtime_parameters.texture_confidence_threshold = 100;
+    // Enable depth processing for NEURAL_PLUS mode - essential for spatial mapping  
+    runtime_parameters.enable_depth = true;  
+    runtime_parameters.enable_fill_mode = true; // Fill mode improves depth completeness
     
     auto last_print = std::chrono::steady_clock::now();
     
     while (recording) {
+        PROFILE_SCOPE("CaptureRecorder::grab");
         auto grab_status = zed.grab(runtime_parameters);
         
         if (grab_status == sl::ERROR_CODE::SUCCESS) {
             frame_count++;
             
-            // Print progress every 5 seconds
+            // Log frame timing information
             auto now = std::chrono::steady_clock::now();
+            if (first_frame) {
+                std::cout << "Frame " << frame_count << ": 0 ms (first frame)" << std::endl;
+                first_frame = false;
+            } else {
+                auto time_since_last = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - last_frame_time).count();
+                std::cout << "Frame " << frame_count << ": " << time_since_last << " ms" << std::endl;
+            }
+            last_frame_time = now;
+            
+            // Print progress every 5 seconds with performance info
             if (std::chrono::duration_cast<std::chrono::seconds>(now - last_print).count() >= 5) {
+                double fps = frame_count / getRecordingDuration();
                 std::cout << "Recording... Frames: " << frame_count 
                           << ", Duration: " << std::fixed << std::setprecision(1) 
-                          << getRecordingDuration() << "s" << std::endl;
+                          << getRecordingDuration() << "s"
+                          << ", FPS: " << std::setprecision(1) << fps << std::endl;
                 last_print = now;
+                
+                // Print performance report every 10 seconds  
+                if (frame_count % 300 == 0) { // ~10 seconds at 30fps
+                    PerformanceProfiler::getInstance().printReport();
+                }
             }
         } else {
             std::cout << "Grab failed: " << grab_status << std::endl;

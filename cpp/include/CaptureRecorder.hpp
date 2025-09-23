@@ -38,6 +38,10 @@ private:
     std::chrono::steady_clock::time_point start_time;
     int frame_count;
     
+    // Frame timing for logging
+    std::chrono::steady_clock::time_point last_frame_time;
+    bool first_frame;
+    
     void recordingLoop();
 };
 
