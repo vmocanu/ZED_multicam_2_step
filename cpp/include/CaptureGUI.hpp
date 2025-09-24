@@ -21,6 +21,8 @@ struct ButtonState {
 class CaptureGUI {
 public:
     CaptureGUI();
+    CaptureGUI(sl::RESOLUTION resolution);
+    CaptureGUI(sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode);
     ~CaptureGUI();
 
     // Initialize GUI and start camera

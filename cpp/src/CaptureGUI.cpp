@@ -37,12 +37,20 @@ void main()
 }
 )";
 
-CaptureGUI::CaptureGUI() 
-    : initialized(false), recording(false), exit_requested(false), 
+CaptureGUI::CaptureGUI()
+    : initialized(false), recording(false), exit_requested(false),
       finished_recording(false), cancelled_recording(false),
       texture_id(0), program_id(0), vao_id(0), vbo_id(0),
       window_width(1920), window_height(1080), frame_count(0), first_frame(true) {
     
+    // Set up default camera parameters
+    init_params.camera_resolution = sl::RESOLUTION::HD1080;
+    init_params.camera_fps = 30;
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+    init_params.coordinate_units = sl::UNIT::METER;
+    init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    
+    // Clear any existing instance
     if (instance != nullptr) {
         delete instance;
     }
@@ -54,6 +62,95 @@ CaptureGUI::CaptureGUI()
     // Enable depth processing for NEURAL_PLUS mode - essential for spatial mapping
     runtime_params.enable_depth = true;
     runtime_params.enable_fill_mode = true; // Fill mode improves depth completeness
+}
+
+CaptureGUI::CaptureGUI(sl::RESOLUTION resolution)
+    : initialized(false), recording(false), exit_requested(false),
+      finished_recording(false), cancelled_recording(false),
+      texture_id(0), program_id(0), vao_id(0), vbo_id(0),
+      window_width(1920), window_height(1080), frame_count(0), first_frame(true) {
+    
+    // Set up camera parameters with specified resolution
+    init_params.camera_resolution = resolution;
+    init_params.camera_fps = 30;
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS; // Best quality for spatial mapping
+    init_params.coordinate_units = sl::UNIT::METER;
+    init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    
+    // Adjust window size based on resolution
+    if (resolution == sl::RESOLUTION::HD720) {
+        window_width = 1280;
+        window_height = 720;
+        std::cout << "CaptureGUI: Using HD720 resolution (1280x720)" << std::endl;
+    } else {
+        window_width = 1920;
+        window_height = 1080;
+        std::cout << "CaptureGUI: Using HD1080 resolution (1920x1080)" << std::endl;
+    }
+    
+    // Clear any existing instance
+    if (instance != nullptr) {
+        delete instance;
+    }
+    instance = this;
+    
+    // Setup runtime parameters - Optimized for spatial mapping quality  
+    runtime_params.confidence_threshold = 100; // Higher confidence for better depth quality
+    runtime_params.texture_confidence_threshold = 100;
+    // Enable depth processing for NEURAL_PLUS mode - essential for spatial mapping
+    runtime_params.enable_depth = true;
+    runtime_params.enable_fill_mode = true; // Fill mode improves depth completeness
+}
+
+CaptureGUI::CaptureGUI(sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode)
+    : initialized(false), recording(false), exit_requested(false),
+      finished_recording(false), cancelled_recording(false),
+      texture_id(0), program_id(0), vao_id(0), vbo_id(0),
+      window_width(1920), window_height(1080), frame_count(0), first_frame(true) {
+    
+    // Set up camera parameters with specified resolution and depth mode
+    init_params.camera_resolution = resolution;
+    init_params.camera_fps = 30;
+    init_params.depth_mode = depth_mode;
+    init_params.coordinate_units = sl::UNIT::METER;
+    init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    
+    // Adjust window size based on resolution
+    if (resolution == sl::RESOLUTION::HD720) {
+        window_width = 1280;
+        window_height = 720;
+        std::cout << "CaptureGUI: Using HD720 resolution (1280x720)" << std::endl;
+    } else {
+        window_width = 1920;
+        window_height = 1080;
+        std::cout << "CaptureGUI: Using HD1080 resolution (1920x1080)" << std::endl;
+    }
+    
+    // Display depth mode
+    std::cout << "CaptureGUI: Using " << (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT ? "NEURAL_LIGHT" : 
+                                          depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : "NEURAL_PLUS") 
+              << " depth mode" << std::endl;
+    
+    // Clear any existing instance
+    if (instance != nullptr) {
+        delete instance;
+    }
+    instance = this;
+    
+    // Setup runtime parameters based on depth mode
+    runtime_params.confidence_threshold = 100; // Higher confidence for better depth quality
+    runtime_params.texture_confidence_threshold = 100;
+    
+    // Enable depth processing if not using NONE mode
+    if (depth_mode != sl::DEPTH_MODE::NONE) {
+        runtime_params.enable_depth = true;
+        runtime_params.enable_fill_mode = true; // Fill mode improves depth completeness
+        std::cout << "CaptureGUI: Depth processing enabled" << std::endl;
+    } else {
+        runtime_params.enable_depth = false;
+        runtime_params.enable_fill_mode = false;
+        std::cout << "CaptureGUI: Depth processing disabled (NONE mode)" << std::endl;
+    }
 }
 
 CaptureGUI::~CaptureGUI() {
@@ -108,7 +205,7 @@ bool CaptureGUI::init(int argc, char** argv, uint64_t target_serial, const std::
     // Setup camera
     init_params.camera_resolution = sl::RESOLUTION::HD1080;
     init_params.camera_fps = 30;
-    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
     

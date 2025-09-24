@@ -4,7 +4,7 @@ ClientPublisher::ClientPublisher() : running(false)
 {
     init_parameters.camera_resolution = sl::RESOLUTION::HD1080;
     init_parameters.camera_fps = 30;
-    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
+    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
 }
 
 ClientPublisher::ClientPublisher(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode) : running(false)

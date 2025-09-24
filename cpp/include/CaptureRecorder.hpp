@@ -9,8 +9,12 @@
 class CaptureRecorder {
 public:
     CaptureRecorder();
+    CaptureRecorder(sl::RESOLUTION resolution);
     CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode);
     ~CaptureRecorder();
+    
+    // Set camera name for logging (e.g., "ZED-X", "ZED-X-Mini")
+    void setCameraName(const std::string& name);
 
     // Initialize camera and start recording to SVO file
     bool startRecording(sl::InputType input, const std::string& svo_path, uint64_t serial_number);
@@ -41,6 +45,7 @@ private:
     // Frame timing for logging
     std::chrono::steady_clock::time_point last_frame_time;
     bool first_frame;
+    std::string camera_name;  // Camera name for logging
     
     void recordingLoop();
 };

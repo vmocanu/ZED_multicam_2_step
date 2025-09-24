@@ -18,7 +18,7 @@ std::map<int, int> syncDATA(std::map<int, std::string> svo_files) {
         auto p_zed = std::make_shared<sl::Camera>();
 
         sl::InitParameters init_param;
-        init_param.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
+        init_param.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
         init_param.camera_disable_self_calib = true;
         init_param.input.setFromSVOFile(it.second.c_str());
 

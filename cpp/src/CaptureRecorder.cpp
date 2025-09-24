@@ -5,14 +5,21 @@
 #include <sys/stat.h>
 #include <cstdlib>
 
-CaptureRecorder::CaptureRecorder() : recording(false), frame_count(0), first_frame(true) {
+CaptureRecorder::CaptureRecorder() : recording(false), frame_count(0), first_frame(true), camera_name("Camera") {
     init_parameters.camera_resolution = sl::RESOLUTION::HD1080;
     init_parameters.camera_fps = 30;
-    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
+    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+}
+
+CaptureRecorder::CaptureRecorder(sl::RESOLUTION resolution) 
+    : recording(false), frame_count(0), first_frame(true), camera_name("Camera") {
+    init_parameters.camera_resolution = resolution;
+    init_parameters.camera_fps = 30;
+    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
 }
 
 CaptureRecorder::CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode) 
-    : recording(false), frame_count(0), first_frame(true) {
+    : recording(false), frame_count(0), first_frame(true), camera_name("Camera") {
     init_parameters.camera_resolution = resolution;
     init_parameters.camera_fps = fps;
     init_parameters.depth_mode = depth_mode;
@@ -116,26 +123,26 @@ void CaptureRecorder::recordingLoop() {
         if (grab_status == sl::ERROR_CODE::SUCCESS) {
             frame_count++;
             
-            // Log frame timing information
-            auto now = std::chrono::steady_clock::now();
-            if (first_frame) {
-                std::cout << "Frame " << frame_count << ": 0 ms (first frame)" << std::endl;
-                first_frame = false;
-            } else {
-                auto time_since_last = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now - last_frame_time).count();
-                std::cout << "Frame " << frame_count << ": " << time_since_last << " ms" << std::endl;
-            }
-            last_frame_time = now;
+                    // Log frame timing information
+                    auto now = std::chrono::steady_clock::now();
+                    if (first_frame) {
+                        std::cout << "[" << camera_name << "] Frame " << frame_count << ": 0 ms (first frame)" << std::endl;
+                        first_frame = false;
+                    } else {
+                        auto time_since_last = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            now - last_frame_time).count();
+                        std::cout << "[" << camera_name << "] Frame " << frame_count << ": " << time_since_last << " ms" << std::endl;
+                    }
+                    last_frame_time = now;
             
             // Print progress every 5 seconds with performance info
-            if (std::chrono::duration_cast<std::chrono::seconds>(now - last_print).count() >= 5) {
-                double fps = frame_count / getRecordingDuration();
-                std::cout << "Recording... Frames: " << frame_count 
-                          << ", Duration: " << std::fixed << std::setprecision(1) 
-                          << getRecordingDuration() << "s"
-                          << ", FPS: " << std::setprecision(1) << fps << std::endl;
-                last_print = now;
+                    if (std::chrono::duration_cast<std::chrono::seconds>(now - last_print).count() >= 5) {
+                        double fps = frame_count / getRecordingDuration();
+                        std::cout << "[" << camera_name << "] Recording... Frames: " << frame_count
+                                  << ", Duration: " << std::fixed << std::setprecision(1)
+                                  << getRecordingDuration() << "s"
+                                  << ", FPS: " << std::setprecision(1) << fps << std::endl;
+                        last_print = now;
                 
                 // Print performance report every 10 seconds  
                 if (frame_count % 300 == 0) { // ~10 seconds at 30fps
@@ -147,4 +154,8 @@ void CaptureRecorder::recordingLoop() {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+}
+
+void CaptureRecorder::setCameraName(const std::string& name) {
+    camera_name = name;
 }
