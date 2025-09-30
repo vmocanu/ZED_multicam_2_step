@@ -69,6 +69,7 @@ void print_usage() {
     std::cout << "  --resolution <res>      Camera resolution: 720 or 1080 (default: 1080)" << std::endl;
     std::cout << "  --depth-mode <mode>     Depth processing: neural_light, neural, neural_plus (default: neural_light)" << std::endl;
     std::cout << "  --camera <selection>    Camera selection: zedx-mini, zedx, both (default: both)" << std::endl;
+    std::cout << "  --headless              Disable GUI preview (run without display)" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  # Multi-camera modes (require config file)" << std::endl;
@@ -80,6 +81,7 @@ void print_usage() {
     std::cout << "  # Single camera modes (no config file needed)" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx --depth-mode neural_plus --duration 30" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx-mini --resolution 720" << std::endl;
+    std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx --headless --duration 60" << std::endl;
     std::cout << std::endl;
     std::cout << "  # Reconstruct mode" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion reconstruct camera_47797222.svo" << std::endl;
@@ -122,6 +124,7 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
                      int recording_duration, const std::string& output_dir,
                      sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode,
                      CameraSelection camera_selection,
+                     bool headless = false,
                      int argc = 0, char **argv = nullptr) {
     
     // Filter cameras based on selection
@@ -161,6 +164,7 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
                                     depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : "NEURAL_PLUS") << std::endl;
     std::cout << "Camera selection: " << (camera_selection == CameraSelection::ZEDX_MINI ? "ZED-X-Mini only" :
                                           camera_selection == CameraSelection::ZEDX ? "ZED-X only" : "Both cameras") << std::endl;
+    std::cout << "Display mode: " << (headless ? "Headless (no GUI)" : "GUI enabled") << std::endl;
     std::cout << "Active cameras: " << filtered_configs.size() << std::endl;
     for (const auto& config : filtered_configs) {
         std::cout << "  " << get_camera_name(config.serial_number) << " (SN: " << config.serial_number << ")" << std::endl;
@@ -180,8 +184,8 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
         }
     }
     
-    // If we have the GUI device, use the special GUI capture mode
-    if (has_gui_device && argc > 0 && argv != nullptr) {
+    // If we have the GUI device, use the special GUI capture mode (unless headless mode is enabled)
+    if (has_gui_device && argc > 0 && argv != nullptr && !headless) {
         std::cout << "Found special device " << GUI_DEVICE_ID << " - using GUI capture mode" << std::endl;
         
         // Generate SVO filename for GUI device
@@ -638,6 +642,7 @@ int main(int argc, char **argv) {
     sl::RESOLUTION resolution = sl::RESOLUTION::HD1080;  // default to 1080p
     sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;  // default to neural_light
     CameraSelection camera_selection = CameraSelection::BOTH;  // default to both cameras
+    bool headless = false;  // default to GUI enabled
     std::string svo_file_path = "";  // for reconstruct mode
     
     // Handle different modes with their specific argument requirements
@@ -736,6 +741,9 @@ int main(int argc, char **argv) {
                     std::cout << "Invalid camera selection '" << camera_str << "'. Using default 'both'." << std::endl;
                     std::cout << "Valid options: zedx-mini, zedx, both" << std::endl;
                 }
+            } else if (arg == "--headless") {
+                headless = true;
+                std::cout << "Headless mode enabled - GUI disabled" << std::endl;
             }
         }
     }
@@ -756,7 +764,7 @@ int main(int argc, char **argv) {
         uint64_t serial_number = (camera_selection == CameraSelection::ZEDX) ? 47797222 : 57709210;
         
         config.serial_number = serial_number;
-        config.communication_parameters.setForLocalNetwork(30000); // Set for local network connection with port 30000
+        //Vali config.communication_parameters.setForSharedMemory(); // Set for local process (direct camera access)
         config.input_type.setFromSerialNumber(serial_number);
         
         configurations.push_back(config);
@@ -780,7 +788,7 @@ int main(int argc, char **argv) {
     // Execute the appropriate mode
     switch (app_mode) {
         case AppMode::CAPTURE:
-            return run_capture_mode(configurations, recording_duration, output_dir, resolution, depth_mode, camera_selection, argc, argv);
+            return run_capture_mode(configurations, recording_duration, output_dir, resolution, depth_mode, camera_selection, headless, argc, argv);
             
         case AppMode::RECONSTRUCT:
             return run_reconstruct_mode(svo_file_path);

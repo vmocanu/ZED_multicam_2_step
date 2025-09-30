@@ -1,5 +1,6 @@
 #include "CaptureRecorder.hpp"
 #include "PerformanceProfiler.hpp"
+#include "SystemMonitor.hpp"
 #include <iostream>
 #include <iomanip>
 #include <sys/stat.h>
@@ -118,7 +119,12 @@ void CaptureRecorder::recordingLoop() {
     
     while (recording) {
         PROFILE_SCOPE("CaptureRecorder::grab");
+        
+        // Detailed timing around grab() call
+        auto grab_start = std::chrono::high_resolution_clock::now();
         auto grab_status = zed.grab(runtime_parameters);
+        auto grab_end = std::chrono::high_resolution_clock::now();
+        auto grab_duration = std::chrono::duration_cast<std::chrono::milliseconds>(grab_end - grab_start).count();
         
         if (grab_status == sl::ERROR_CODE::SUCCESS) {
             frame_count++;
@@ -131,7 +137,19 @@ void CaptureRecorder::recordingLoop() {
                     } else {
                         auto time_since_last = std::chrono::duration_cast<std::chrono::milliseconds>(
                             now - last_frame_time).count();
-                        std::cout << "[" << camera_name << "] Frame " << frame_count << ": " << time_since_last << " ms" << std::endl;
+                        
+                        // Enhanced logging for performance anomalies
+                        if (time_since_last > 1000) { // Alert for delays > 1 second
+                            std::cout << "[" << camera_name << "] *** LONG DELAY *** Frame " << frame_count 
+                                      << ": interval=" << time_since_last << "ms, grab=" << grab_duration 
+                                      << "ms (expected interval ~33ms)" << std::endl;
+                            
+                            // Log system status during anomaly
+                            SystemMonitor::logSystemStatus("LONG_DELAY_FRAME_" + std::to_string(frame_count));
+                        } else {
+                            std::cout << "[" << camera_name << "] Frame " << frame_count 
+                                      << ": interval=" << time_since_last << "ms, grab=" << grab_duration << "ms" << std::endl;
+                        }
                     }
                     last_frame_time = now;
             
@@ -147,11 +165,23 @@ void CaptureRecorder::recordingLoop() {
                 // Print performance report every 10 seconds  
                 if (frame_count % 300 == 0) { // ~10 seconds at 30fps
                     PerformanceProfiler::getInstance().printReport();
+                    SystemMonitor::logSystemStatus("PERIODIC_BASELINE");
                 }
             }
         } else {
-            std::cout << "Grab failed: " << grab_status << std::endl;
+            std::cout << "[" << camera_name << "] *** GRAB FAILED *** Status: " << grab_status 
+                      << ", grab_duration=" << grab_duration << "ms" << std::endl;
+            
+            // Log system status on grab failures
+            SystemMonitor::logSystemStatus("GRAB_FAILED_" + std::to_string(static_cast<int>(grab_status)));
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        
+        // Monitor long grab calls (even if successful)
+        if (grab_duration > 100) { // Alert for grab calls > 100ms
+            std::cout << "[" << camera_name << "] *** SLOW GRAB *** Duration: " << grab_duration 
+                      << "ms (expected ~16-33ms)" << std::endl;
+            SystemMonitor::logSystemStatus("SLOW_GRAB_" + std::to_string(grab_duration) + "ms");
         }
     }
 }
