@@ -11,13 +11,22 @@ public:
     CaptureRecorder();
     CaptureRecorder(sl::RESOLUTION resolution);
     CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode);
+    CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode, bool enable_timing_logs);
     ~CaptureRecorder();
     
     // Set camera name for logging (e.g., "ZED-X", "ZED-X-Mini")
     void setCameraName(const std::string& name);
+    
+    // Enable or disable frame timing logs
+    void setTimingLogsEnabled(bool enabled);
 
-    // Initialize camera and start recording to SVO file
+    // Initialize camera and start recording to SVO file (combined operation)
     bool startRecording(sl::InputType input, const std::string& svo_path, uint64_t serial_number);
+    
+    // Coordinated recording methods (for synchronized multi-camera capture)
+    bool openCamera(sl::InputType input, uint64_t serial_number);
+    bool enableRecording(const std::string& svo_path, uint64_t serial_number);
+    void startRecordingThread();
     
     // Stop recording
     void stopRecording();
@@ -46,6 +55,7 @@ private:
     std::chrono::steady_clock::time_point last_frame_time;
     bool first_frame;
     std::string camera_name;  // Camera name for logging
+    bool timing_logs_enabled;  // Control frame-by-frame timing logs
     
     void recordingLoop();
 };

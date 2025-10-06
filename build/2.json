@@ -1,0 +1,44 @@
+{
+    "47797222": {
+        "FusionConfiguration": {
+            "communication_parameters": {
+                "CommunicationParameters": {
+                    "communication_type": "INTRA PROCESS",
+                    "ip_add": "",
+                    "ip_port": 0
+                }
+            },
+            "input_type": {
+                "InputType": {
+                    "input": "",
+                    "input_type_conf": "47797222",
+                    "input_type_input": "GMSL SERIAL"
+                }
+            },
+            "override_gravity": false,
+            "pose": "1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 -0.658031 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000",
+            "serial_number": 47797222
+        }
+    },
+    "57709210": {
+        "FusionConfiguration": {
+            "communication_parameters": {
+                "CommunicationParameters": {
+                    "communication_type": "INTRA PROCESS",
+                    "ip_add": "",
+                    "ip_port": 0
+                }
+            },
+            "input_type": {
+                "InputType": {
+                    "input": "",
+                    "input_type_conf": "57709210",
+                    "input_type_input": "GMSL SERIAL"
+                }
+            },
+            "override_gravity": false,
+            "pose": "0.963058 0.230849 0.138663 -0.057734 -0.200851 0.958745 -0.201164 -1.355881 -0.179381 0.165882 0.969694 -0.135730 0.000000 0.000000 0.000000 1.000000",
+            "serial_number": 57709210
+        }
+    }
+}

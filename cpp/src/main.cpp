@@ -23,6 +23,7 @@
 #include "CaptureRecorder.hpp"
 #include "CaptureGUI.hpp"
 #include "GLViewer.hpp"
+#include "LivePreview.hpp"
 #include "utils.hpp"
 #include <signal.h>
 #include <chrono>
@@ -57,7 +58,7 @@ void print_usage() {
     std::cout << "Modes:" << std::endl;
     std::cout << "  capture    Record SVO files from each camera" << std::endl;
     std::cout << "  fusion     Perform fusion on recorded SVO files" << std::endl;
-    std::cout << "  live       Live capture + fusion (original mode)" << std::endl;
+    std::cout << "  live       Live capture + fusion (RECOMMENDED for GMSL2 cameras)" << std::endl;
     std::cout << "  reconstruct <svo_file>  Perform spatial mapping on single SVO file" << std::endl;
     std::cout << std::endl;
     std::cout << "Arguments:" << std::endl;
@@ -70,18 +71,27 @@ void print_usage() {
     std::cout << "  --depth-mode <mode>     Depth processing: neural_light, neural, neural_plus (default: neural_light)" << std::endl;
     std::cout << "  --camera <selection>    Camera selection: zedx-mini, zedx, both (default: both)" << std::endl;
     std::cout << "  --headless              Disable GUI preview (run without display)" << std::endl;
+    std::cout << "  --log-timing            Enable frame-by-frame timing logs (verbose)" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Live Mode Options:" << std::endl;
+    std::cout << "  --resolution <res>      Camera resolution: 720 or 1080 (default: 1080)" << std::endl;
+    std::cout << "  --fps <fps>             Target FPS: 15 or 30 (default: 15)" << std::endl;
+    std::cout << "  --depth-mode <mode>     Depth processing: neural_light, neural, neural_plus (default: neural_plus)" << std::endl;
+    std::cout << "  --log-fps               Log average FPS per camera (last 20 frames)" << std::endl;
+    std::cout << "  --preview               Show live preview window for left camera (ZEDX)" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  # Multi-camera modes (require config file)" << std::endl;
+    std::cout << "  ./ZED_SpatialMappingFusion live config.json              # BEST for GMSL2 (real-time fusion)" << std::endl;
+    std::cout << "  ./ZED_SpatialMappingFusion live config.json --resolution 720 --fps 15 --depth-mode neural_light --log-fps" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture config.json --duration 60" << std::endl;
-    std::cout << "  ./ZED_SpatialMappingFusion capture config.json --camera both" << std::endl;
-    std::cout << "  ./ZED_SpatialMappingFusion fusion config.json" << std::endl;
-    std::cout << "  ./ZED_SpatialMappingFusion live config.json" << std::endl;
+    std::cout << "  ./ZED_SpatialMappingFusion fusion config.json            # Fuse pre-recorded SVOs" << std::endl;
     std::cout << std::endl;
     std::cout << "  # Single camera modes (no config file needed)" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx --depth-mode neural_plus --duration 30" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx-mini --resolution 720" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx --headless --duration 60" << std::endl;
+    std::cout << "  ./ZED_SpatialMappingFusion capture --camera zedx --headless --log-timing --duration 30" << std::endl;
     std::cout << std::endl;
     std::cout << "  # Reconstruct mode" << std::endl;
     std::cout << "  ./ZED_SpatialMappingFusion reconstruct camera_47797222.svo" << std::endl;
@@ -125,6 +135,7 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
                      sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode,
                      CameraSelection camera_selection,
                      bool headless = false,
+                     bool log_timing = false,
                      int argc = 0, char **argv = nullptr) {
     
     // Filter cameras based on selection
@@ -165,6 +176,7 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
     std::cout << "Camera selection: " << (camera_selection == CameraSelection::ZEDX_MINI ? "ZED-X-Mini only" :
                                           camera_selection == CameraSelection::ZEDX ? "ZED-X only" : "Both cameras") << std::endl;
     std::cout << "Display mode: " << (headless ? "Headless (no GUI)" : "GUI enabled") << std::endl;
+    std::cout << "Frame timing logs: " << (log_timing ? "Enabled" : "Disabled") << std::endl;
     std::cout << "Active cameras: " << filtered_configs.size() << std::endl;
     for (const auto& config : filtered_configs) {
         std::cout << "  " << get_camera_name(config.serial_number) << " (SN: " << config.serial_number << ")" << std::endl;
@@ -188,8 +200,8 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
     if (has_gui_device && argc > 0 && argv != nullptr && !headless) {
         std::cout << "Found special device " << GUI_DEVICE_ID << " - using GUI capture mode" << std::endl;
         
-        // Generate SVO filename for GUI device
-        std::string svo_filename = "camera_" + std::to_string(GUI_DEVICE_ID) + ".svo";
+        // Generate SVO filename for GUI device (SDK 5 uses .svo2 format by default)
+        std::string svo_filename = "camera_" + std::to_string(GUI_DEVICE_ID) + ".svo2";
         std::string svo_path = output_dir + "/" + svo_filename;
         
         // Create and run GUI capture
@@ -232,29 +244,31 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
     std::vector<std::string> svo_paths;
     
     for (size_t i = 0; i < filtered_configs.size(); ++i) {
-        recorders.push_back(std::make_unique<CaptureRecorder>(resolution, 30, depth_mode)); // Use specified resolution and depth mode
+        recorders.push_back(std::make_unique<CaptureRecorder>(resolution, 30, depth_mode, log_timing)); // Use specified resolution, depth mode, and logging preference
         
         // Set camera name for logging
         recorders[i]->setCameraName(get_camera_name(filtered_configs[i].serial_number));
         
-        // Generate SVO filename based on serial number
-        std::string svo_filename = "camera_" + std::to_string(filtered_configs[i].serial_number) + ".svo";
+        // Generate SVO filename based on serial number (SDK 5 uses .svo2 format by default)
+        std::string svo_filename = "camera_" + std::to_string(filtered_configs[i].serial_number) + ".svo2";
         std::string svo_path = output_dir + "/" + svo_filename;
         svo_paths.push_back(svo_path);
     }
     
-    // Start recording on all cameras
-    int active_recordings = 0;
+    // COORDINATED START FOR SYNCHRONIZED CAPTURE
+    // Step 1: Open all cameras first
+    std::cout << "=== Step 1: Opening cameras ===" << std::endl;
+    std::vector<size_t> active_camera_indices;
     for (size_t i = 0; i < filtered_configs.size(); ++i) {
         const auto& conf = filtered_configs[i];
         
-        // Only start recording for cameras that should run locally
+        // Only process cameras that should run locally
         if (conf.communication_parameters.getType() == sl::CommunicationParameters::COMM_TYPE::INTRA_PROCESS) {
-            std::cout << "Starting recording for " << get_camera_name(conf.serial_number) 
+            std::cout << "Opening " << get_camera_name(conf.serial_number) 
                       << " (SN: " << conf.serial_number << ")..." << std::flush;
             
-            if (recorders[i]->startRecording(conf.input_type, svo_paths[i], conf.serial_number)) {
-                active_recordings++;
+            if (recorders[i]->openCamera(conf.input_type, conf.serial_number)) {
+                active_camera_indices.push_back(i);
                 std::cout << " OK" << std::endl;
             } else {
                 std::cout << " FAILED" << std::endl;
@@ -262,10 +276,48 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
         }
     }
     
-    if (active_recordings == 0) {
-        std::cout << "No cameras started recording. Exiting." << std::endl;
+    if (active_camera_indices.empty()) {
+        std::cout << "No cameras opened successfully. Exiting." << std::endl;
         return EXIT_FAILURE;
     }
+    
+    std::cout << "Opened " << active_camera_indices.size() << " camera(s) successfully." << std::endl;
+    std::cout << std::endl;
+    
+    // Step 2: Enable recording on all cameras (but don't start threads yet)
+    std::cout << "=== Step 2: Enabling recording ===" << std::endl;
+    std::vector<size_t> recording_camera_indices;
+    for (size_t idx : active_camera_indices) {
+        const auto& conf = filtered_configs[idx];
+        std::cout << "Enabling recording for " << get_camera_name(conf.serial_number) 
+                  << " (SN: " << conf.serial_number << ")..." << std::flush;
+        
+        if (recorders[idx]->enableRecording(svo_paths[idx], conf.serial_number)) {
+            recording_camera_indices.push_back(idx);
+            std::cout << " OK" << std::endl;
+        } else {
+            std::cout << " FAILED" << std::endl;
+        }
+    }
+    
+    if (recording_camera_indices.empty()) {
+        std::cout << "Failed to enable recording on any camera. Exiting." << std::endl;
+        return EXIT_FAILURE;
+    }
+    
+    std::cout << "Recording enabled on " << recording_camera_indices.size() << " camera(s)." << std::endl;
+    std::cout << std::endl;
+    
+    // Step 3: Start all recording threads simultaneously for best timestamp synchronization
+    std::cout << "=== Step 3: Starting synchronized recording ===" << std::endl;
+    for (size_t idx : recording_camera_indices) {
+        const auto& conf = filtered_configs[idx];
+        std::cout << "Starting recording thread for " << get_camera_name(conf.serial_number) 
+                  << " (SN: " << conf.serial_number << ")" << std::endl;
+        recorders[idx]->startRecordingThread();
+    }
+    
+    int active_recordings = recording_camera_indices.size();
     
     std::cout << std::endl << "Recording started on " << active_recordings << " camera(s)." << std::endl;
     std::cout << "Press Ctrl+C to stop recording early." << std::endl;
@@ -337,6 +389,7 @@ int run_reconstruct_mode(const std::string& svo_file_path) {
     init_params.depth_mode = sl::DEPTH_MODE::NEURAL_PLUS; // Use best quality for reconstruction
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    init_params.sdk_verbose = false;  // Disable SDK internal logging
     
     auto returned_state = zed.open(init_params);
     if (returned_state != sl::ERROR_CODE::SUCCESS) {
@@ -443,22 +496,43 @@ int run_reconstruct_mode(const std::string& svo_file_path) {
 int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations, 
                     const sl::COORDINATE_SYSTEM& COORDINATE_SYSTEM, 
                     const sl::UNIT& UNIT, 
-                    int argc, char **argv) {
+                    bool log_fps = false,
+                    sl::RESOLUTION resolution = sl::RESOLUTION::HD1080,
+                    int fps = 15,
+                    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL_PLUS,
+                    bool enable_preview = false,
+                    int argc = 0,
+                    char** argv = nullptr) {
     
     std::cout << "=== FUSION MODE ===" << std::endl;
     std::cout << "Number of cameras/SVO files: " << configurations.size() << std::endl;
+    
+    // Log depth mode
+    std::string depth_str;
+    if (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
+    else if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+    else if (depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
+    else depth_str = "UNKNOWN";
+    std::cout << "Depth mode: " << depth_str << std::endl;
+    
+    // Log resolution and FPS settings for live mode
+    std::string res_str = (resolution == sl::RESOLUTION::HD720) ? "HD720" : "HD1080";
+    std::cout << "Resolution: " << res_str << std::endl;
+    std::cout << "Target FPS: " << fps << std::endl;
     std::cout << std::endl;
 
       // Check if the ZED camera should run within the same process or if they are running on the edge.
-      // Note: Camera parameters (resolution, 30fps, depth_mode) are configurable via command line
-    std::vector<ClientPublisher> clients(configurations.size());
+    std::vector<std::unique_ptr<ClientPublisher>> clients;
+    for (size_t i = 0; i < configurations.size(); i++) {
+        clients.push_back(std::make_unique<ClientPublisher>(resolution, fps, depth_mode));
+    }
     int id_ = 0;
     std::map<int, std::string> svo_files;
     for (auto conf: configurations) {
         // if the ZED camera should run locally, then start a thread to handle it
         if(conf.communication_parameters.getType() == sl::CommunicationParameters::COMM_TYPE::INTRA_PROCESS){
             std::cout << "Try to open ZED " <<conf.serial_number << ".." << std::flush;
-            auto state = clients[id_].open(conf.input_type);
+            auto state = clients[id_]->open(conf.input_type);
 
             if (!state) {
                 std::cerr << "Could not open ZED: " << conf.input_type.getConfiguration() << ". Skipping..." << std::endl;
@@ -469,6 +543,26 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
                 svo_files.insert(std::make_pair(id_, conf.input_type.getConfiguration()));
 
             std::cout << ". ready !" << std::endl;
+            
+            // Log camera resolution and FPS after initialization (for live cameras)
+            if (conf.input_type.getType() != sl::InputType::INPUT_TYPE::SVO_FILE) {
+                auto cam_info = clients[id_]->getCameraInformation();
+                auto cam_config = cam_info.camera_configuration;
+                
+                // Convert depth mode to string
+                std::string depth_str;
+                if (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
+                else if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+                else if (depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
+                else depth_str = "UNKNOWN";
+                
+                std::cout << "  Camera " << conf.serial_number << " initialized:" << std::endl;
+                std::cout << "    Resolution: " << cam_config.resolution.width << "x" 
+                          << cam_config.resolution.height << std::endl;
+                std::cout << "    FPS: " << cam_config.fps << std::endl;
+                std::cout << "    Depth Mode: " << depth_str << std::endl;
+                std::cout << "    Serial Number: " << cam_info.serial_number << std::endl;
+            }
 
             id_++;
         }
@@ -482,13 +576,61 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
 
         for (auto &it : cam_idx_to_svo_frame_idx) {
             std::cout << "Setting camera " << it.first << " to frame " << it.second << std::endl;
-            clients[it.first].setStartSVOPosition(it.second);
+            clients[it.first]->setStartSVOPosition(it.second);
         }
     }
 
+    // Enable FPS tracking if requested
+    if (log_fps && !enable_svo_sync) {
+        std::cout << "FPS tracking enabled for live cameras" << std::endl;
+        for (auto &client : clients) {
+            client->enableFPSTracking(true);
+        }
+    }
+    
     // start camera threads
     for (auto &it: clients)
-        it.start();
+        it->start();
+
+    // Give cameras time to start publishing
+    if (enable_svo_sync) {
+        std::cout << "Waiting for SVO cameras to start publishing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));  // Longer wait for SVO playback
+    } else {
+        std::cout << "Waiting for live cameras to start publishing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));  // Shorter wait for live cameras
+    }
+    
+    // Setup live preview if requested (only for live cameras, not SVO)
+    std::unique_ptr<LivePreview> live_preview;
+    int zedx_camera_index = -1;
+    if (enable_preview && !enable_svo_sync) {
+        // Find the ZEDX camera (serial 47797222)
+        for (size_t i = 0; i < configurations.size(); i++) {
+            if (configurations[i].serial_number == 47797222) {
+                zedx_camera_index = i;
+                break;
+            }
+        }
+        
+        if (zedx_camera_index >= 0) {
+            std::cout << "Starting live preview for ZEDX camera (SN: 47797222)..." << std::endl;
+            
+            // Enable image retrieval for the ZEDX camera
+            clients[zedx_camera_index]->enableImageRetrieval(true);
+            
+            // Create and start preview window
+            sl::Resolution preview_resolution(resolution == sl::RESOLUTION::HD720 ? 
+                                              sl::Resolution(1280, 720) : 
+                                              sl::Resolution(1920, 1080));
+            live_preview = std::make_unique<LivePreview>(preview_resolution);
+            live_preview->start(argc, argv);
+            
+            std::cout << "Live preview started successfully" << std::endl;
+        } else {
+            std::cout << "Warning: ZEDX camera (SN: 47797222) not found. Preview disabled." << std::endl;
+        }
+    }
 
     // Now that the ZED camera are running, we need to initialize the fusion module
     sl::InitFusionParameters init_params;
@@ -496,7 +638,7 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
     // Camera settings are configured individually in ClientPublisher
     init_params.coordinate_units = UNIT;
     init_params.coordinate_system = COORDINATE_SYSTEM;
-    init_params.verbose = true;
+    init_params.verbose = false;  // Disable verbose SDK logging to see only application logs
 
     // create and initialize it
     sl::Fusion fusion;
@@ -531,9 +673,8 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
         return 1;
     }
 
-    // creation of a 3D viewer
-    GLViewer viewer;
-    viewer.init(argc, argv);
+    std::cout << "Positional tracking enabled" << std::endl;
+    std::cout << "Running fusion in headless mode (no GUI)" << std::endl;
 
     sl::SpatialMappingFusionParameters spatial_mapping_parameters;
 #if BUILD_MESH
@@ -558,41 +699,148 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
         return 1;
     }
 
+    std::cout << "Spatial mapping enabled" << std::endl;
+    if (enable_svo_sync) {
+        std::cout << "Processing SVO frames... Press Ctrl+C to stop and save the map." << std::endl;
+    } else {
+        std::cout << "Processing LIVE frames... Press Ctrl+C to stop and save the map." << std::endl;
+    }
+
     sl::Timestamp last_update = 0;
     bool wait_for_mesh = false;    
+    int processed_frames = 0;
+    auto start_time = std::chrono::steady_clock::now();
+    auto last_progress = start_time;
 
     auto ts = sl::getCurrentTimeStamp();
-    // run the fusion as long as the viewer is available.
-    while (viewer.isAvailable()) {
+    
+    // Setup signal handling for graceful shutdown
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    // Run the fusion process until interrupted or SVO files end
+    int consecutive_no_data_count = 0;  // Track consecutive "no data" errors
+    int max_no_data_retries = enable_svo_sync ? 100 : 300;  // More retries for live cameras
+    while (!exit_requested) {
         // run the fusion process (which gather data from all camera, sync them and process them)
+        auto fusion_state = fusion.process();
         
-        if (fusion.process() == sl::FUSION_ERROR_CODE::SUCCESS) {
-
-            std::cout<<"New frame at TS: "<<(sl::getCurrentTimeStamp().getMilliseconds()-ts.getMilliseconds())<<std::endl;
-            ts = sl::getCurrentTimeStamp();
-            if(!wait_for_mesh && (ts.getMilliseconds() - last_update.getMilliseconds() > 100 )){
-                fusion.requestSpatialMapAsync();
-                wait_for_mesh =true;
+        if (fusion_state == sl::FUSION_ERROR_CODE::SUCCESS) {
+            consecutive_no_data_count = 0;  // Reset counter on success
+            processed_frames++;
+            
+            // Update live preview if enabled
+            if (live_preview && live_preview->isRunning() && zedx_camera_index >= 0) {
+                sl::Mat preview_image;
+                if (clients[zedx_camera_index]->getLeftImage(preview_image)) {
+                    live_preview->updateImage(preview_image);
+                }
+            }
+            
+            // Progress indicator every 5 seconds
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - last_progress).count() >= 5) {
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+                double fps = processed_frames / (elapsed + 0.001);
+                
+                std::cout << "Processed frames: " << processed_frames 
+                          << ", Duration: " << elapsed << "s"
+                          << ", FPS: " << std::fixed << std::setprecision(1) << fps << std::endl;
+                
+                // Log per-camera FPS if enabled
+                if (log_fps && !enable_svo_sync) {
+                    std::cout << "  Per-camera FPS (last 20 frames):" << std::endl;
+                    for (size_t i = 0; i < clients.size() && i < configurations.size(); ++i) {
+                        if (clients[i]->isRunning()) {
+                            double cam_fps = clients[i]->getAverageFPS();
+                            std::cout << "    Camera " << configurations[i].serial_number 
+                                      << ": " << std::fixed << std::setprecision(1) << cam_fps << " FPS" << std::endl;
+                        }
+                    }
+                }
+                
+                last_progress = now;
             }
 
+            auto current_ts = sl::getCurrentTimeStamp();
+            // Request spatial map update every 100ms
+            if(!wait_for_mesh && (current_ts.getMilliseconds() - last_update.getMilliseconds() > 100 )){
+                fusion.requestSpatialMapAsync();
+                wait_for_mesh = true;
+            }
+
+            // Retrieve spatial map when ready
             if(wait_for_mesh && fusion.getSpatialMapRequestStatusAsync() == sl::FUSION_ERROR_CODE::SUCCESS){
                 fusion.retrieveSpatialMapAsync(map);
-                // update the 3D view
-                viewer.updateMap(map);
                 wait_for_mesh = false;
-                last_update = ts;
+                last_update = current_ts;
             }
+        } else if (fusion_state == sl::FUSION_ERROR_CODE::FUSION_FPS_TOO_LOW) {
+            // Expected when SVO files end
+            std::cout << "SVO playback completed (fusion FPS too low or end of files)" << std::endl;
+            break;
+        } else if (fusion_state == sl::FUSION_ERROR_CODE::NO_NEW_DATA_AVAILABLE) {
+            // This can happen at startup or between frames - wait and retry
+            consecutive_no_data_count++;
+            if (consecutive_no_data_count > max_no_data_retries) {
+                std::cout << "Fusion error: No new data available after " << consecutive_no_data_count << " attempts" << std::endl;
+                if (!enable_svo_sync) {
+                    std::cout << "Note: For live cameras, ensure both cameras are connected and working properly." << std::endl;
+                }
+                break;
+            }
+            // Wait a bit before retrying
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } else {
+            std::cout << "Fusion process error: " << fusion_state << std::endl;
+            break;
         }
     }
 
-    viewer.exit();
+    std::cout << std::endl << "Fusion processing completed" << std::endl;
+    std::cout << "Total frames processed: " << processed_frames << std::endl;
+    
+    // Final map retrieval
+    std::cout << "Retrieving final spatial map..." << std::endl;
+    if (wait_for_mesh) {
+        // Wait for pending async request
+        while (fusion.getSpatialMapRequestStatusAsync() != sl::FUSION_ERROR_CODE::SUCCESS) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        fusion.retrieveSpatialMapAsync(map);
+    } else {
+        // Request final map
+        fusion.requestSpatialMapAsync();
+        while (fusion.getSpatialMapRequestStatusAsync() != sl::FUSION_ERROR_CODE::SUCCESS) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        fusion.retrieveSpatialMapAsync(map);
+    }
 
+    std::cout << "Saving fused map to MyMap.ply..." << std::endl;
     map.save("MyMap.ply", sl::MESH_FILE_FORMAT::PLY);
 
+    std::cout << "Map saved successfully" << std::endl;
+    
+#if BUILD_MESH
+    std::cout << "Mesh vertices: " << map.vertices.size() << std::endl;
+    std::cout << "Mesh triangles: " << map.triangles.size() << std::endl;
+#else
+    std::cout << "Point cloud size: " << map.vertices.size() << std::endl;
+#endif
+
+    std::cout << "Stopping camera clients..." << std::endl;
     for (auto &it: clients)
-        it.stop();
+        it->stop();
+    
+    // Stop live preview if it was running
+    if (live_preview) {
+        std::cout << "Stopping live preview..." << std::endl;
+        live_preview->stop();
+    }
 
     fusion.close();
+    std::cout << "Fusion closed successfully" << std::endl;
 
     return EXIT_SUCCESS;
 }
@@ -608,7 +856,7 @@ std::vector<sl::FusionConfiguration> create_svo_configurations(
         sl::FusionConfiguration svo_config = config;
         
         // Create SVO file path
-        std::string svo_filename = "camera_" + std::to_string(config.serial_number) + ".svo";
+        std::string svo_filename = "camera_" + std::to_string(config.serial_number) + ".svo2";
         std::string svo_path = svo_directory + "/" + svo_filename;
         
         // Check if SVO file exists using stat (C++14 compatible)
@@ -640,9 +888,13 @@ int main(int argc, char **argv) {
     int recording_duration = 30;  // seconds
     std::string output_dir = "./svo_recordings";
     sl::RESOLUTION resolution = sl::RESOLUTION::HD1080;  // default to 1080p
+    int target_fps = 15;  // default to 15 FPS for live mode
     sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;  // default to neural_light
     CameraSelection camera_selection = CameraSelection::BOTH;  // default to both cameras
     bool headless = false;  // default to GUI enabled
+    bool log_timing = false;  // default to frame timing logs disabled
+    bool log_fps = false;  // default to per-camera FPS logging disabled
+    bool enable_preview = false;  // default to preview disabled
     std::string svo_file_path = "";  // for reconstruct mode
     
     // Handle different modes with their specific argument requirements
@@ -744,6 +996,27 @@ int main(int argc, char **argv) {
             } else if (arg == "--headless") {
                 headless = true;
                 std::cout << "Headless mode enabled - GUI disabled" << std::endl;
+            } else if (arg == "--log-timing") {
+                log_timing = true;
+                std::cout << "Frame timing logs enabled" << std::endl;
+            } else if (arg == "--log-fps") {
+                log_fps = true;
+                std::cout << "Per-camera FPS logging enabled" << std::endl;
+            } else if (arg == "--preview") {
+                enable_preview = true;
+                std::cout << "Live preview enabled" << std::endl;
+            } else if (arg == "--fps" && i + 1 < argc) {
+                std::string fps_str(argv[++i]);
+                if (fps_str == "15") {
+                    target_fps = 15;
+                    std::cout << "Using 15 FPS" << std::endl;
+                } else if (fps_str == "30") {
+                    target_fps = 30;
+                    std::cout << "Using 30 FPS" << std::endl;
+                } else {
+                    std::cout << "Invalid FPS '" << fps_str << "'. Using default 15 FPS." << std::endl;
+                    std::cout << "Valid options: 15, 30" << std::endl;
+                }
             }
         }
     }
@@ -788,24 +1061,24 @@ int main(int argc, char **argv) {
     // Execute the appropriate mode
     switch (app_mode) {
         case AppMode::CAPTURE:
-            return run_capture_mode(configurations, recording_duration, output_dir, resolution, depth_mode, camera_selection, headless, argc, argv);
+            return run_capture_mode(configurations, recording_duration, output_dir, resolution, depth_mode, camera_selection, headless, log_timing, argc, argv);
             
         case AppMode::RECONSTRUCT:
             return run_reconstruct_mode(svo_file_path);
             
         case AppMode::FUSION: {
             // For fusion mode, use SVO files from the svo_recordings directory
-            auto svo_configs = create_svo_configurations(configurations, "./svo_recordings");
+            auto svo_configs = create_svo_configurations(configurations, "../svo_recordings");
             if (svo_configs.empty()) {
-                std::cout << "No SVO files found in ./svo_recordings/" << std::endl;
+                std::cout << "No SVO files found in ../svo_recordings/" << std::endl;
                 std::cout << "Run capture mode first to record SVO files." << std::endl;
                 return EXIT_FAILURE;
             }
-            return run_fusion_mode(svo_configs, COORDINATE_SYSTEM, UNIT, argc, argv);
+            return run_fusion_mode(svo_configs, COORDINATE_SYSTEM, UNIT, log_fps, resolution, target_fps, depth_mode, enable_preview, argc, argv);
         }
         
         case AppMode::LIVE_FUSION:
-            return run_fusion_mode(configurations, COORDINATE_SYSTEM, UNIT, argc, argv);
+            return run_fusion_mode(configurations, COORDINATE_SYSTEM, UNIT, log_fps, resolution, target_fps, depth_mode, enable_preview, argc, argv);
             
         default:
             std::cout << "Unknown application mode" << std::endl;

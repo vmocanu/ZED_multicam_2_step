@@ -208,6 +208,7 @@ bool CaptureGUI::init(int argc, char** argv, uint64_t target_serial, const std::
     init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    init_params.sdk_verbose = false;  // Disable SDK internal logging
     
     // Try to open camera with specific serial number
     init_params.input.setFromSerialNumber(target_serial);
