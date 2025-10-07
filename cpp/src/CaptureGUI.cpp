@@ -128,7 +128,8 @@ CaptureGUI::CaptureGUI(sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode)
     
     // Display depth mode
     std::cout << "CaptureGUI: Using " << (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT ? "NEURAL_LIGHT" : 
-                                          depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : "NEURAL_PLUS") 
+                                          depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : 
+                                          depth_mode == sl::DEPTH_MODE::NEURAL_PLUS ? "NEURALPLUS" : "NONE") 
               << " depth mode" << std::endl;
     
     // Clear any existing instance

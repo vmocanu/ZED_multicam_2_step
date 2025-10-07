@@ -13,9 +13,11 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES "Debug;RelWithDebInfo;Release;Release_with_debug_info" CACHE STRING "Available build configurations" FORCE)
 
 # Custom Release_with_debug_info build type
-set(CMAKE_CXX_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -O3 -DNDEBUG -march=native -mtune=native" CACHE STRING "CXX flags for Release_with_debug_info")
-set(CMAKE_C_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -O3 -DNDEBUG -march=native -mtune=native" CACHE STRING "C flags for Release_with_debug_info")  
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE_WITH_DEBUG_INFO "-O3" CACHE STRING "Linker flags for Release_with_debug_info")
+# Using -Og for better debugging experience (optimized for debugging)
+# Note: -Og provides good performance while keeping code debuggable with reliable breakpoints
+set(CMAKE_CXX_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -Og -march=native -mtune=native" CACHE STRING "CXX flags for Release_with_debug_info")
+set(CMAKE_C_FLAGS_RELEASE_WITH_DEBUG_INFO "-g3 -Og -march=native -mtune=native" CACHE STRING "C flags for Release_with_debug_info")  
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE_WITH_DEBUG_INFO "" CACHE STRING "Linker flags for Release_with_debug_info")
 
 # Build configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

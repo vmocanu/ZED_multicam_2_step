@@ -1,0 +1,127 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Debug",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-debug.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": false,
+                "showReuseMessage": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "detail": "Build in Debug mode (no optimization, full debug info)"
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-release.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": false,
+                "showReuseMessage": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "detail": "Build in Release mode (fully optimized, no debug info)"
+        },
+        {
+            "label": "Build Release with Debug Info",
+            "type": "shell",
+            "command": "${workspaceFolder}/build-release-with-debug.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": false,
+                "showReuseMessage": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "detail": "Build in Release_with_debug_info mode (fully optimized with debug symbols)"
+        },
+        {
+            "label": "Build All Configurations",
+            "dependsOn": [
+                "Build Debug",
+                "Build Release",
+                "Build Release with Debug Info"
+            ],
+            "dependsOrder": "sequence",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "detail": "Build all three configurations sequentially"
+        },
+        {
+            "label": "Clean Debug",
+            "type": "shell",
+            "command": "rm -rf ${workspaceFolder}/build-debug",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "detail": "Remove Debug build directory"
+        },
+        {
+            "label": "Clean Release",
+            "type": "shell",
+            "command": "rm -rf ${workspaceFolder}/build-release",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "detail": "Remove Release build directory"
+        },
+        {
+            "label": "Clean Release with Debug",
+            "type": "shell",
+            "command": "rm -rf ${workspaceFolder}/build-release-debug",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "detail": "Remove Release with Debug build directory"
+        },
+        {
+            "label": "Clean All Builds",
+            "dependsOn": [
+                "Clean Debug",
+                "Clean Release",
+                "Clean Release with Debug"
+            ],
+            "dependsOrder": "parallel",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "detail": "Remove all build directories"
+        }
+    ]
+}
+

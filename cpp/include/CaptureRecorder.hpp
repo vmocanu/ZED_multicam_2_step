@@ -40,6 +40,12 @@ public:
     // Get recording duration in seconds
     double getRecordingDuration() const;
     
+    // Get camera information (for logging camera parameters)
+    sl::CameraInformation getCameraInformation() const;
+    
+    // Get actual initialization parameters used by the camera
+    sl::InitParameters getInitParameters() const;
+    
 private:
     sl::Camera zed;
     sl::InitParameters init_parameters;

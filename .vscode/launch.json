@@ -2,78 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ZED Capture Mode",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/ZED_SpatialMappingFusion",
-            "args": [
-                "capture",
-                "2.json",
-                "--duration",
-                "20"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp",
-            "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "/usr/local/zed/lib:/usr/local/cuda/lib64:${env:LD_LIBRARY_PATH}"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "additionalSOLibSearchPath": "/usr/local/zed/lib:/usr/local/cuda/lib64",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set disassembly flavor to intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "ZED Fusion Mode",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/ZED_SpatialMappingFusion",
-            "args": [
-                "fusion",
-                "2.json"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp",
-            "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "/usr/local/zed/lib:/usr/local/cuda/lib64:${env:LD_LIBRARY_PATH}"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "additionalSOLibSearchPath": "/usr/local/zed/lib:/usr/local/cuda/lib64",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set disassembly flavor to intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
             "name": "ZED Capture Mode (Release)",
             "type": "cppdbg",
             "request": "launch",
@@ -82,7 +10,9 @@
                 "capture",
                 "2.json",
                 "--duration",
-                "20"
+                "30",
+                "--depth-mode",
+                "neural_none"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/cpp",
@@ -100,9 +30,14 @@
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
+                },
+                {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "",
+            "preLaunchTask": "Build Release",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -130,9 +65,14 @@
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
+                },
+                {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "",
+            "preLaunchTask": "Build Release",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -144,7 +84,9 @@
                 "capture",
                 "2.json",
                 "--duration",
-                "20"
+                "30",
+                "--depth-mode",
+                "neural_plus"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/cpp",
@@ -169,12 +111,17 @@
                     "ignoreFailures": true
                 },
                 {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
+                },
+                {
                     "description": "Skip optimized frames (helps with -O3 debugging)",
                     "text": "-gdb-set skip-solib-deps on",
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "",
+            "preLaunchTask": "Build Release with Debug Info",
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
@@ -209,12 +156,101 @@
                     "ignoreFailures": true
                 },
                 {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
+                },
+                {
                     "description": "Skip optimized frames (helps with -O3 debugging)",
                     "text": "-gdb-set skip-solib-deps on",
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "",
+            "preLaunchTask": "Build Release with Debug Info",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "ZED Live Fusion Mode (Release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-release/ZED_SpatialMappingFusion",
+            "args": [
+                "live",
+                "2.json",
+                "--fps",
+                "15",
+                "--depth-mode",
+                "neural_plus"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/zed/lib:/usr/local/cuda/lib64:${env:LD_LIBRARY_PATH}"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "additionalSOLibSearchPath": "/usr/local/zed/lib:/usr/local/cuda/lib64",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Release",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "ZED Live Fusion Mode (Release + Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-release-debug/ZED_SpatialMappingFusion",
+            "args": [
+                "live",
+                "2.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/zed/lib:/usr/local/cuda/lib64:${env:LD_LIBRARY_PATH}"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "additionalSOLibSearchPath": "/usr/local/zed/lib:/usr/local/cuda/lib64",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set disassembly flavor to intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Suppress thread creation/exit messages",
+                    "text": "-gdb-set print thread-events off",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Skip optimized frames (helps with -O3 debugging)",
+                    "text": "-gdb-set skip-solib-deps on",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Release with Debug Info",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

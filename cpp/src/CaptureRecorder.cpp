@@ -115,6 +115,14 @@ double CaptureRecorder::getRecordingDuration() const {
     return duration.count() / 1000.0;
 }
 
+sl::CameraInformation CaptureRecorder::getCameraInformation() const {
+    return zed.getCameraInformation();
+}
+
+sl::InitParameters CaptureRecorder::getInitParameters() const {
+    return zed.getInitParameters();
+}
+
 void CaptureRecorder::recordingLoop() {
     sl::RuntimeParameters runtime_parameters;
     runtime_parameters.confidence_threshold = 50;

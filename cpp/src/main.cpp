@@ -171,8 +171,16 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
     std::cout << "Recording duration: " << recording_duration << " seconds" << std::endl;
     std::cout << "Output directory: " << output_dir << std::endl;
     std::cout << "Resolution: " << (resolution == sl::RESOLUTION::HD720 ? "HD720 (1280x720)" : "HD1080 (1920x1080)") << std::endl;
-    std::cout << "Depth mode: " << (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT ? "NEURAL_LIGHT" : 
-                                    depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : "NEURAL_PLUS") << std::endl;
+
+    std::string strDepth = "NEURAL_NONE";
+    switch(depth_mode) {
+        case sl::DEPTH_MODE::NEURAL_LIGHT: strDepth = "NEURAL_LIGHT"; break;
+        case sl::DEPTH_MODE::NEURAL: strDepth = "NEURAL"; break;
+        case sl::DEPTH_MODE::NEURAL_PLUS: strDepth = "NEURAL_PLUS"; break;
+        case sl::DEPTH_MODE::NONE: strDepth = "NEURAL_NONE"; break;
+    }
+
+    std::cout << "Depth mode: " << strDepth << std::endl;
     std::cout << "Camera selection: " << (camera_selection == CameraSelection::ZEDX_MINI ? "ZED-X-Mini only" :
                                           camera_selection == CameraSelection::ZEDX ? "ZED-X only" : "Both cameras") << std::endl;
     std::cout << "Display mode: " << (headless ? "Headless (no GUI)" : "GUI enabled") << std::endl;
@@ -282,6 +290,34 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
     }
     
     std::cout << "Opened " << active_camera_indices.size() << " camera(s) successfully." << std::endl;
+    std::cout << std::endl;
+    
+    // Log camera parameters after initialization (read from camera to verify settings)
+    std::cout << "=== Camera Parameters (Actual Values from Camera) ===" << std::endl;
+    for (size_t idx : active_camera_indices) {
+        const auto& conf = filtered_configs[idx];
+        auto cam_info = recorders[idx]->getCameraInformation();
+        auto cam_config = cam_info.camera_configuration;
+        auto init_params = recorders[idx]->getInitParameters();
+        
+        // Convert actual depth mode from camera to string
+        std::string depth_str;
+        if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
+        else if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+        else if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
+        else if (init_params.depth_mode == sl::DEPTH_MODE::NONE) depth_str = "NONE";
+        else depth_str = "UNKNOWN";
+        
+        std::cout << "  " << get_camera_name(conf.serial_number) << " (SN: " << conf.serial_number << "):" << std::endl;
+        std::cout << "    Resolution: " << cam_config.resolution.width << "x" 
+                  << cam_config.resolution.height << std::endl;
+        std::cout << "    FPS: " << cam_config.fps << std::endl;
+        std::cout << "    Depth Mode: " << depth_str << std::endl;
+        std::cout << "    Camera Resolution (from init): " << 
+                     (init_params.camera_resolution == sl::RESOLUTION::HD720 ? "HD720" :
+                      init_params.camera_resolution == sl::RESOLUTION::HD1080 ? "HD1080" : "OTHER") << std::endl;
+        std::cout << "    Camera FPS (from init): " << init_params.camera_fps << std::endl;
+    }
     std::cout << std::endl;
     
     // Step 2: Enable recording on all cameras (but don't start threads yet)
@@ -765,7 +801,7 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
             auto current_ts = sl::getCurrentTimeStamp();
             // Request spatial map update every 100ms
             if(!wait_for_mesh && (current_ts.getMilliseconds() - last_update.getMilliseconds() > 100 )){
-                fusion.requestSpatialMapAsync();
+                //Vali fusion.requestSpatialMapAsync();
                 wait_for_mesh = true;
             }
 
@@ -891,7 +927,7 @@ int main(int argc, char **argv) {
     int target_fps = 15;  // default to 15 FPS for live mode
     sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;  // default to neural_light
     CameraSelection camera_selection = CameraSelection::BOTH;  // default to both cameras
-    bool headless = false;  // default to GUI enabled
+    bool headless = true;  // default to GUI enabled
     bool log_timing = false;  // default to frame timing logs disabled
     bool log_fps = false;  // default to per-camera FPS logging disabled
     bool enable_preview = false;  // default to preview disabled
@@ -976,7 +1012,11 @@ int main(int argc, char **argv) {
                 } else if (depth_str == "neural_plus") {
                     depth_mode = sl::DEPTH_MODE::NEURAL_PLUS;
                     std::cout << "Using NEURAL_PLUS depth mode" << std::endl;
-                } else {
+                }else if (depth_str == "neural_none") {
+                    depth_mode = sl::DEPTH_MODE::NONE;
+                    std::cout << "Using NONE depth mode" << std::endl;
+                }  
+                else {
                     std::cout << "Invalid depth mode '" << depth_str << "'. Using default NEURAL_LIGHT." << std::endl;
                     std::cout << "Valid options: neural_light, neural, neural_plus" << std::endl;
                 }
