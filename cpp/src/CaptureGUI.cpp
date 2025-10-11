@@ -46,7 +46,7 @@ CaptureGUI::CaptureGUI()
     // Set up default camera parameters
     init_params.camera_resolution = sl::RESOLUTION::HD1080;
     init_params.camera_fps = 30;
-    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;//NEURAL_PLUS;
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
     
@@ -73,7 +73,7 @@ CaptureGUI::CaptureGUI(sl::RESOLUTION resolution)
     // Set up camera parameters with specified resolution
     init_params.camera_resolution = resolution;
     init_params.camera_fps = 30;
-    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS; // Best quality for spatial mapping
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;//NEURAL_PLUS; // Best quality for spatial mapping
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
     
@@ -127,8 +127,7 @@ CaptureGUI::CaptureGUI(sl::RESOLUTION resolution, sl::DEPTH_MODE depth_mode)
     }
     
     // Display depth mode
-    std::cout << "CaptureGUI: Using " << (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT ? "NEURAL_LIGHT" : 
-                                          depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : 
+    std::cout << "CaptureGUI: Using " << (depth_mode == sl::DEPTH_MODE::NEURAL ? "NEURAL" : 
                                           depth_mode == sl::DEPTH_MODE::NEURAL_PLUS ? "NEURALPLUS" : "NONE") 
               << " depth mode" << std::endl;
     
@@ -206,7 +205,7 @@ bool CaptureGUI::init(int argc, char** argv, uint64_t target_serial, const std::
     // Setup camera
     init_params.camera_resolution = sl::RESOLUTION::HD1080;
     init_params.camera_fps = 30;
-    init_params.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+    init_params.depth_mode = sl::DEPTH_MODE::NEURAL;
     init_params.coordinate_units = sl::UNIT::METER;
     init_params.coordinate_system = sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
     init_params.sdk_verbose = false;  // Disable SDK internal logging

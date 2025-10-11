@@ -47,7 +47,7 @@ public:
     sl::InitParameters getInitParameters() const;
     
 private:
-    sl::Camera zed;
+    mutable sl::Camera zed;
     sl::InitParameters init_parameters;
     sl::RecordingParameters recording_parameters;
     

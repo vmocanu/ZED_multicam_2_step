@@ -9,14 +9,14 @@
 CaptureRecorder::CaptureRecorder() : recording(false), frame_count(0), first_frame(true), camera_name("Camera"), timing_logs_enabled(false) {
     init_parameters.camera_resolution = sl::RESOLUTION::HD1080;
     init_parameters.camera_fps = 30;
-    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;//NEURAL_PLUS;
 }
 
 CaptureRecorder::CaptureRecorder(sl::RESOLUTION resolution) 
     : recording(false), frame_count(0), first_frame(true), camera_name("Camera"), timing_logs_enabled(false) {
     init_parameters.camera_resolution = resolution;
     init_parameters.camera_fps = 30;
-    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;//NEURAL_PLUS;
+    init_parameters.depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;//NEURAL_PLUS;
 }
 
 CaptureRecorder::CaptureRecorder(sl::RESOLUTION resolution, int fps, sl::DEPTH_MODE depth_mode) 

@@ -174,7 +174,7 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
 
     std::string strDepth = "NEURAL_NONE";
     switch(depth_mode) {
-        case sl::DEPTH_MODE::NEURAL_LIGHT: strDepth = "NEURAL_LIGHT"; break;
+        //case sl::DEPTH_MODE::NEURAL_LIGHT: strDepth = "NEURAL_LIGHT"; break;
         case sl::DEPTH_MODE::NEURAL: strDepth = "NEURAL"; break;
         case sl::DEPTH_MODE::NEURAL_PLUS: strDepth = "NEURAL_PLUS"; break;
         case sl::DEPTH_MODE::NONE: strDepth = "NEURAL_NONE"; break;
@@ -302,8 +302,11 @@ int run_capture_mode(const std::vector<sl::FusionConfiguration>& configurations,
         
         // Convert actual depth mode from camera to string
         std::string depth_str;
+        /*
         if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
-        else if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+        else 
+        */
+        if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
         else if (init_params.depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
         else if (init_params.depth_mode == sl::DEPTH_MODE::NONE) depth_str = "NONE";
         else depth_str = "UNKNOWN";
@@ -545,8 +548,11 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
     
     // Log depth mode
     std::string depth_str;
+    /*
     if (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
-    else if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+    else 
+    */
+    if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
     else if (depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
     else depth_str = "UNKNOWN";
     std::cout << "Depth mode: " << depth_str << std::endl;
@@ -587,8 +593,9 @@ int run_fusion_mode(const std::vector<sl::FusionConfiguration>& configurations,
                 
                 // Convert depth mode to string
                 std::string depth_str;
-                if (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
-                else if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
+                /*if (depth_mode == sl::DEPTH_MODE::NEURAL_LIGHT) depth_str = "NEURAL_LIGHT";
+                else 
+                */if (depth_mode == sl::DEPTH_MODE::NEURAL) depth_str = "NEURAL";
                 else if (depth_mode == sl::DEPTH_MODE::NEURAL_PLUS) depth_str = "NEURAL_PLUS";
                 else depth_str = "UNKNOWN";
                 
@@ -925,7 +932,7 @@ int main(int argc, char **argv) {
     std::string output_dir = "./svo_recordings";
     sl::RESOLUTION resolution = sl::RESOLUTION::HD1080;  // default to 1080p
     int target_fps = 15;  // default to 15 FPS for live mode
-    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;  // default to neural_light
+    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;  // default to neural_light
     CameraSelection camera_selection = CameraSelection::BOTH;  // default to both cameras
     bool headless = true;  // default to GUI enabled
     bool log_timing = false;  // default to frame timing logs disabled
@@ -1004,7 +1011,7 @@ int main(int argc, char **argv) {
             } else if (arg == "--depth-mode" && i + 1 < argc) {
                 std::string depth_str(argv[++i]);
                 if (depth_str == "neural_light") {
-                    depth_mode = sl::DEPTH_MODE::NEURAL_LIGHT;
+                    depth_mode = sl::DEPTH_MODE::NEURAL;//_LIGHT;
                     std::cout << "Using NEURAL_LIGHT depth mode" << std::endl;
                 } else if (depth_str == "neural") {
                     depth_mode = sl::DEPTH_MODE::NEURAL;
